@@ -11,10 +11,10 @@ df = spark.read.csv('covid-data.csv', header=True, inferSchema=True)
 df = df.filter(col('date') <= '2021-03-31')
 
 # Группировка данных по странам и датам
-grouped_df = df.groupBy('location', 'population').agg(sum('total_cases').alias('total_cases'))
+grouped_df = df.groupBy('iso\_code', 'location', 'population').agg(sum('total_cases').alias('total_cases'))
 
 # Суммирование количества переболевших
-total_vaccinated = grouped_df.groupBy('location').agg(sum('total_cases').alias('total_cases'))
+total_vaccinated = grouped_df.groupBy('iso\_code', 'location').agg(sum('total_cases').alias('total_cases'))
 
 # Выбор 15 стран с наибольшим значением отношения переболевших к общей численности населения
 total_population = spark.read.csv('covid-data.csv', header=True, inferSchema=True)
