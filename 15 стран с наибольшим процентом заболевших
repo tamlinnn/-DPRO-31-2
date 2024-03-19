@@ -1,0 +1,32 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, sum, lit, when, count, mean
+from pyspark.sql.types import StringType
+
+spark = SparkSession.builder.appName('Covid Data Analysis').getOrCreate()
+
+# Загрузка данных
+df = spark.read.csv('covid-data.csv', header=True, inferSchema=True)
+
+# Фильтрация данных по дате
+df = df.filter(col('date') <= '2021-03-31')
+
+# Группировка данных по странам и датам
+grouped_df = df.groupBy('location', 'population').agg(sum('total_cases').alias('total_cases'))
+
+# Суммирование количества переболевших
+total_vaccinated = grouped_df.groupBy('location').agg(sum('total_cases').alias('total_cases'))
+
+# Выбор 15 стран с наибольшим значением отношения переболевших к общей численности населения
+total_population = spark.read.csv('covid-data.csv', header=True, inferSchema=True)
+total_population = total_population.withColumn('population', col('population').cast(StringType()))
+
+# Сортировка стран по отношению переболевших к общей численности населения
+sorted_df = total_vaccinated.join(total_population, on='location', how='left')
+sorted_df = sorted_df.withColumn('ratio', (col('total_cases') / col('population')).cast(FloatType()))
+sorted_df = sorted_df.sort('ratio', ascending=False)
+
+# Выбор первых 15 строк
+top_15_countries = sorted_df.limit(15)
+
+# Вывод результатов
+print(top_15_countries.show())
