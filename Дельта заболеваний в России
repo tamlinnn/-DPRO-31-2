@@ -1,5 +1,6 @@
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
+from pyspark.sql.window import Window
 
 spark = SparkSession.builder.appName("Covid Data Analysis").getOrCreate()
 
@@ -9,13 +10,14 @@ df = spark.read.csv('covid-data.csv', header=True)
 # Фильтрация данных по дате и стране
 df = df.filter(df['location'] == 'Russia')
 df = df.filter(df['date'] <= '2021-03-31')
-df = df.filter(df['date'] > '2021-03-29')
+df = df.filter(df['date'] >= '2021-03-29')
 
 # Группировка данных по датам
 grouped_df = df.groupBy('date').agg(F.sum('new_cases').alias('new_cases'))
 
 # Вычисление разницы между количеством новых случаев в каждый день и предыдущий день
-grouped_df = grouped_df.withColumn('delta', F.col('new_cases') - F.lag('new_cases'))
+grouped_df = grouped_df.withColumn('delta', F.col('new_cases') - F.lag('new_cases').over(Window.orderBy('date')))
+grouped_df = grouped_df.filter(grouped_df['date'] != '2021-03-29')
 
 # Вывод результатов
 grouped_df.show()
