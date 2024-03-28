@@ -12,7 +12,7 @@ df = df.filter(df['date'] <= '2021-03-31')
 df = df.filter(df['date'] > '2021-03-29')
 
 # Группировка данных по странам и датам
-grouped_df = df.groupBy('location').agg(F.sum('new_cases').alias('new_cases'))
+grouped_df = df.groupBy('location').agg(F.max('new_cases').alias('new_cases'))
 
 # Сортировка стран по количеству новых случаев
 sorted_df = grouped_df.sort('new_cases', ascending=False)
@@ -23,5 +23,4 @@ top_10_countries = sorted_df.limit(10)
 
 # Вывод результатов
 top_10_countries.show()
-
 
