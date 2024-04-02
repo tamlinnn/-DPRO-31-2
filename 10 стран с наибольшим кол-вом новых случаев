@@ -1,26 +1,34 @@
-import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, sum, lit, when, mean, round
+from pyspark.sql.types import StringType, IntegerType
+from pyspark.sql import functions as F, Window
 
-spark = SparkSession.builder.appName("Covid Data Analysis").getOrCreate()
+inferSchema = True
 
 # Загрузка данных
 df = spark.read.csv('covid-data.csv', header=True)
 
+# Создаем окно скользящего агрегата, которое будет двигаться по одной неделе
+window = Window.partitionBy('location').orderBy('date').rowsBetween(Window.unboundedPreceding, 0)
+
+# Добавляем колонку с датами, когда максимум на неделе был достигнут
+df = df.withColumn('max_weekly_date', F.first('date').over(window))
+
 # Фильтрация данных по дате
-df = df.filter(df['location'] != 'World')
+df = df.filter(df['location'] != 'World').filter(df['location'] != 'Europe').filter(df['location'] != 'European Union').filter(df['location'] != 'Asia').filter(df['location'] != 'North America').filter(df['location'] != 'South America')
 df = df.filter(df['date'] <= '2021-03-31')
 df = df.filter(df['date'] > '2021-03-29')
 
+filtered_df = df.where(col("date") == lit('2021-03-31'))
+
 # Группировка данных по странам и датам
-grouped_df = df.groupBy('location').agg(F.max('new_cases').alias('new_cases'))
+grouped_df = filtered_df.groupBy('location','date').agg(F.max('new_cases').cast("int").alias('new_cases'))
 
 # Сортировка стран по количеству новых случаев
-sorted_df = grouped_df.sort('new_cases', ascending=False)
-sorted_df = sorted_df.filter(sorted_df['location'] != 'World')
+sorted_df = grouped_df.orderBy(col("new_cases").desc())
 
 # Выбор первых 10 строк
 top_10_countries = sorted_df.limit(10)
 
 # Вывод результатов
 top_10_countries.show()
-
