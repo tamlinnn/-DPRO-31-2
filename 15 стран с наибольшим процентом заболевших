@@ -1,6 +1,8 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, sum, lit, when, mean
+from pyspark.sql.functions import col, sum, lit, when, mean, round
 from pyspark.sql.types import StringType
+
+inferSchema = True
 
 spark = SparkSession.builder.appName("CovidDataAnalysis").getOrCreate()
 
@@ -8,15 +10,15 @@ spark = SparkSession.builder.appName("CovidDataAnalysis").getOrCreate()
 df = spark.read.format("csv").option("header", "true").load("covid-data.csv")
 
 # Фильтрация данных по дате
-filtered_df = df.where(col("date") <= lit('2021-03-31'))
+filtered_df = df.where(col("date") == lit('2021-03-31'))
 
 # Сортировка стран по отношению переболевших к общей численности населения
-sorted_df = filtered_df.withColumn("ratio", col("total_cases") / col("population"))
-sorted_df = sorted_df.groupBy("iso_code", "location").agg(mean(col("ratio")).alias("ratio"))
+sorted_df = filtered_df.withColumn("ratio", round((col("total_cases") / col("population")) * 100, 2))
+
 sorted_df = sorted_df.orderBy(col("ratio").desc())
 
 # Выбор первых 15 строк
-top_15_countries = sorted_df.limit(15)
+top_15_countries = sorted_df.select(['iso_code', 'location', 'ratio']).limit(15)
 
 # Вывод результатов
 print(top_15_countries.show())
